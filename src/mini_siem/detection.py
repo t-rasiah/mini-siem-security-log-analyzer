@@ -4,8 +4,11 @@ from datetime import timedelta
 
 def detect_failed_login_threshold(
     events,
-    threshold=5,
-    timeframe_seconds=60,
+    threshold,
+    timeframe_seconds,
+    rule_id,
+    severity,
+    message,
 ):
     failed_logins = defaultdict(list)
     alerts = []
@@ -37,17 +40,35 @@ def detect_failed_login_threshold(
             if len(attempts) >= threshold:
                 alerts.append(
                     {
-                        "rule_id": "SIEM-SSH-001",
-                        "severity": "WARNING",
+                        "rule_id": rule_id,
+                        "severity": severity,
                         "source_ip": source_ip,
                         "attempts": len(attempts),
                         "timeframe_seconds": timeframe_seconds,
-                        "message": (
-                            "Multiple failed SSH login attempts detected"
-                        ),
+                        "message": message,
                     }
                 )
 
                 break
+
+    return alerts
+
+
+def detect_invalid_user(events):
+    alerts = []
+
+    for event in events:
+        if event["event_type"] != "ssh_invalid_user":
+            continue
+
+        alerts.append(
+            {
+                "rule_id": "SIEM-SSH-003",
+                "severity": "SUSPICIOUS",
+                "source_ip": event["source_ip"],
+                "username": event["username"],
+                "message": "SSH login attempt with invalid user detected",
+            }
+        )
 
     return alerts
