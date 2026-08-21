@@ -3,6 +3,7 @@ from pathlib import Path
 from detection import (
     detect_failed_login_threshold,
     detect_invalid_user,
+    detect_success_after_failures,
 )
 from parser import parse_line
 
@@ -45,7 +46,7 @@ def print_alert(alert):
 
 
 def main():
-    logfile = "/vagrant/tests/sample_logs/ssh_invalid_user.log"
+    logfile = "/vagrant/tests/sample_logs/ssh_success_after_failures.log"
 
     print("[INFO] Mini-SIEM Security Log Analyzer")
     print(f"[INFO] Reading: {logfile}")
@@ -74,8 +75,18 @@ def main():
 
     invalid_user_alerts = detect_invalid_user(events)
 
+    success_after_failures_alerts = detect_success_after_failures(
+        events=events,
+        threshold=5,
+        timeframe_seconds=300,
+    )
 
-    alerts = warning_alerts + critical_alerts + invalid_user_alerts
+    alerts = (
+        warning_alerts
+        + critical_alerts
+        + invalid_user_alerts
+        + success_after_failures_alerts
+    )
 
     if not alerts:
         print("[INFO] No security alerts detected.")

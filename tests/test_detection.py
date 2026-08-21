@@ -10,6 +10,7 @@ sys.path.insert(0, str(SRC_PATH))
 from mini_siem.detection import (
     detect_failed_login_threshold,
     detect_invalid_user,
+    detect_success_after_failures,
 )
 
 
@@ -173,3 +174,81 @@ def test_rule_003_invalid_user_is_triggered():
     assert alerts[0]["severity"] == "SUSPICIOUS"
     assert alerts[0]["username"] == "administrator"
     assert alerts[0]["source_ip"] == "192.168.56.40"
+
+
+def test_rule_004_success_after_failures_is_triggered():
+    base_time = datetime(
+        2026,
+        8,
+        21,
+        19,
+        0,
+        0,
+        tzinfo=timezone.utc,
+    )
+
+    events = [
+        make_failed_login(
+            base_time + timedelta(seconds=index * 10),
+            source_ip="192.168.56.70",
+        )
+        for index in range(5)
+    ]
+
+    events.append(
+        {
+            "timestamp": base_time + timedelta(seconds=60),
+            "event_type": "ssh_successful_login",
+            "username": "testuser",
+            "source_ip": "192.168.56.70",
+            "message": "Accepted password",
+        }
+    )
+
+    alerts = detect_success_after_failures(
+        events=events,
+        threshold=5,
+        timeframe_seconds=300,
+    )
+
+    assert len(alerts) == 1
+    assert alerts[0]["rule_id"] == "SIEM-SSH-004"
+    assert alerts[0]["severity"] == "HIGH"
+    assert alerts[0]["source_ip"] == "192.168.56.70"
+
+def test_rule_004_success_after_failures_is_not_triggered():
+    base_time = datetime(
+        2026,
+        8,
+        21,
+        19,
+        0,
+        0,
+        tzinfo=timezone.utc,
+    )
+
+    events = [
+        make_failed_login(
+            base_time + timedelta(seconds=index * 10),
+            source_ip="192.168.56.70",
+        )
+        for index in range(4)
+    ]
+
+    events.append(
+        {
+            "timestamp": base_time + timedelta(seconds=60),
+            "event_type": "ssh_successful_login",
+            "username": "testuser",
+            "source_ip": "192.168.56.70",
+            "message": "Accepted password",
+        }
+    )
+
+    alerts = detect_success_after_failures(
+        events=events,
+        threshold=5,
+        timeframe_seconds=300,
+    )
+
+    assert len(alerts) == 0
