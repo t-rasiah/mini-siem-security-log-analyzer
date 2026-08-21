@@ -27,6 +27,17 @@ Vagrant.configure("2") do |config|
       vb.cpus = 2
     end
 
+    siem.vm.provision "shell", path: "provision/siem.sh"
+
+    siem.vm.provision "file",
+      source: "config/rsyslog-server.conf",
+      destination: "/tmp/rsyslog-server.conf"
+
+    siem.vm.provision "shell", inline: <<-SHELL
+      sudo cp /tmp/rsyslog-server.conf /etc/rsyslog.d/10-remote.conf
+      sudo systemctl restart rsyslog
+    SHELL
+
   end
 
 
@@ -48,6 +59,17 @@ Vagrant.configure("2") do |config|
       vb.memory = 1024
       vb.cpus = 1
     end
+
+    client.vm.provision "shell", path: "provision/log-client.sh"
+
+    client.vm.provision "file",
+      source: "config/rsyslog-client.conf",
+      destination: "/tmp/rsyslog-client.conf"
+
+    client.vm.provision "shell", inline: <<-SHELL
+      sudo cp /tmp/rsyslog-client.conf /etc/rsyslog.d/90-forward.conf
+      sudo systemctl restart rsyslog
+    SHELL
 
   end
 
